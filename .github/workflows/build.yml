@@ -1,0 +1,42 @@
+name: Build macOS Intel
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Package.swift'
+      - 'Sources/**'
+      - '.github/workflows/build.yml'
+jobs:
+  build:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Intel executable
+        run: swift build -c release --arch x86_64
+      - name: Package app
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/MoleDesk.app/Contents/MacOS
+          BIN="$(find .build -type f -path '*/release/MoleDesk' -perm -u+x | head -n 1)"
+          test -n "$BIN"
+          cp "$BIN" dist/MoleDesk.app/Contents/MacOS/MoleDesk
+          cat > dist/MoleDesk.app/Contents/Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>CFBundleName</key><string>MoleDesk</string>
+          <key>CFBundleIdentifier</key><string>dev.open.moledesk</string>
+          <key>CFBundleExecutable</key><string>MoleDesk</string>
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>CFBundleShortVersionString</key><string>0.3.0</string>
+          <key>CFBundleVersion</key><string>1</string>
+          <key>LSMinimumSystemVersion</key><string>12.0</string>
+          </dict></plist>
+          PLIST
+          (cd dist && zip -r MoleDesk-Intel.zip MoleDesk.app)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoleDesk-Intel
+          path: dist/MoleDesk-Intel.zip
